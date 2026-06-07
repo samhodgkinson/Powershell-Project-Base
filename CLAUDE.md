@@ -41,7 +41,7 @@ Toolchain:
 ├── .github/workflows/
 │   ├── ci.yml                lint + test (3 OS) + security + build
 │   └── publish.yml           triggered by v*.*.* tag
-├── Build.ps1               Invoke-Build task file
+├── .build.ps1              Invoke-Build task file (auto-discovered by Invoke-Build)
 └── PSScriptAnalyzerSettings.psd1
 ```
 

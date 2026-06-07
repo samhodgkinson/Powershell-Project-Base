@@ -41,7 +41,7 @@ Rename-Item src/YourModule/MyModule.psm1  YourModule.psm1
 # 2. Generate a new GUID and paste it into YourModule.psd1
 (New-Guid).Guid
 
-# 3. Update Build.ps1 param: $ModuleName = 'YourModule'
+# 3. Update .build.ps1 param: $ModuleName = 'YourModule'
 # 4. Update tests: fix the Import-Module path in BeforeAll blocks
 ```
 
@@ -69,7 +69,7 @@ Rename-Item src/YourModule/MyModule.psm1  YourModule.psm1
 │   └── publish.yml           publish on v*.*.* tag push
 ├── .vscode/
 ├── .claude/commands/
-├── Build.ps1
+├── .build.ps1
 └── PSScriptAnalyzerSettings.psd1
 ```
 
@@ -118,7 +118,7 @@ auto-generated cmdlet files — changes will be overwritten.
 
 ## Publishing
 
-All three publish targets are wired in `Build.ps1` and triggered by
+All three publish targets are wired in `.build.ps1` and triggered by
 `publish.yml` when you push a version tag.
 
 ```bash

@@ -12,8 +12,8 @@
             "name": "PowerShell: Run Pester Tests",
             "type": "PowerShell",
             "request": "launch",
-            "script": "${workspaceFolder}/Build.ps1",
-            "args": ["-Task", "Test"],
+            "script": "${workspaceFolder}/.build.ps1",
+            "args": [],
             "cwd": "${workspaceFolder}"
         },
         {
