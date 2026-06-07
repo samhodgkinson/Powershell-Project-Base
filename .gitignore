@@ -1,0 +1,16 @@
+# Build output
+.build/
+
+# Compiled module artifacts
+*.nupkg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*.code-workspace
+
+# Secrets
+.env
+*.env.local
