@@ -1,6 +1,10 @@
 @{
     Severity     = @('Error', 'Warning', 'Information')
-    ExcludeRules = @()
+    ExcludeRules = @(
+        # Enforcing column-alignment on ALL assignment statements produces excessive
+        # noise in practice. Hashtable alignment is handled by the editor formatter.
+        'PSAlignAssignmentStatement'
+    )
     Rules        = @{
         PSUseConsistentIndentation          = @{
             Enable          = $true
@@ -17,10 +21,6 @@
             CheckPipeForRedundantWhitespace = $true
             CheckSeparator                  = $true
             CheckParameter                  = $false
-        }
-        PSAlignAssignmentStatement          = @{
-            Enable         = $true
-            CheckHashtable = $true
         }
         PSAvoidUsingCmdletAliases           = @{
             AllowList = @()

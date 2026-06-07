@@ -23,6 +23,10 @@ Describe 'Get-Example' {
             $result[0] | Should -Be 'Hello, Alice!'
             $result[1] | Should -Be 'Hello, Bob!'
         }
+
+        It 'Accepts ValueFromPipelineByPropertyName via Name property' {
+            [pscustomobject]@{ Name = 'Carol' } | Get-Example | Should -Be 'Hello, Carol!'
+        }
     }
 
     Context 'When given invalid input' {

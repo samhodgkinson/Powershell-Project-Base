@@ -1,7 +1,10 @@
 {
     "name": "PowerShell Module",
     "image": "mcr.microsoft.com/devcontainers/powershell:7.4",
-    "postCreateCommand": "pwsh -Command 'Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module InvokeBuild, Pester, PSScriptAnalyzer, platyPS, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force'",
+    "postCreateCommand": [
+        "pwsh", "-Command",
+        "Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module InvokeBuild, Pester, PSScriptAnalyzer, platyPS, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [

@@ -9,23 +9,24 @@
       Clean          Remove .build/ output directory
       Lint           Run PSScriptAnalyzer against src/
       Test           Run Pester 5 tests with JaCoCo + JUnit output
-      Manifest       Auto-discover Public/ functions, update FunctionsToExport,
-                     validate GUID is not the template placeholder
-      Build          Create a monolithic .psm1 and stage to .build/MyModule/
-      Docs           Generate per-cmdlet markdown via platyPS; create about_ doc
+      Manifest       Sync FunctionsToExport in source PSD1 from Public/ (dev tool;
+                     preserves comments; not called automatically by Build)
+      Build          Concatenate source into a monolithic .psm1, update the built
+                     manifest, validate it, and stage to .build/MyModule/
+      Docs           Generate per-cmdlet markdown via platyPS and compile to MAML
       Publish        Publish to PowerShell Gallery  (PSGALLERY_API_KEY)
       PublishGitHub  Publish to GitHub Packages     (GITHUB_TOKEN, GITHUB_OWNER)
       PublishADO     Publish to ADO Artifacts        (ADO_PAT, ADO_ORG, ADO_FEED)
 #>
 
 param(
-    [string] $ModuleName    = 'MyModule',
-    [string] $SrcPath       = "$PSScriptRoot/src/$ModuleName",
-    [string] $BuildPath     = "$PSScriptRoot/.build",
-    [string] $OutputPath    = "$PSScriptRoot/.build/$ModuleName",
-    [string] $TestsPath     = "$PSScriptRoot/tests",
-    [string] $DocsPath      = "$PSScriptRoot/docs",
-    [string] $TemplateGuid  = '49c1b8e7-8aae-447c-a22d-b0a0a7f3d36a'
+    [string] $ModuleName   = 'MyModule',
+    [string] $SrcPath      = "$PSScriptRoot/src/$ModuleName",
+    [string] $BuildPath    = "$PSScriptRoot/.build",
+    [string] $OutputPath   = "$PSScriptRoot/.build/$ModuleName",
+    [string] $TestsPath    = "$PSScriptRoot/tests",
+    [string] $DocsPath     = "$PSScriptRoot/docs",
+    [string] $TemplateGuid = '49c1b8e7-8aae-447c-a22d-b0a0a7f3d36a'
 )
 
 # ---------------------------------------------------------------------------
@@ -50,15 +51,16 @@ task Lint {
 task Test {
     $null = New-Item $BuildPath -ItemType Directory -Force
     $config = New-PesterConfiguration
-    $config.Run.Path          = $TestsPath
-    $config.Run.Exit          = $true
-    $config.Output.Verbosity  = 'Detailed'
+    $config.Run.Path         = $TestsPath
+    $config.Run.Exit         = $true
+    $config.Output.Verbosity = 'Detailed'
 
-    $config.CodeCoverage.Enabled        = $true
-    $config.CodeCoverage.Path           = $SrcPath
-    $config.CodeCoverage.UseBreakpoints = $false   # Profiler mode: faster on large suites
-    $config.CodeCoverage.OutputFormat   = 'JaCoCo'
-    $config.CodeCoverage.OutputPath     = "$BuildPath/coverage.xml"
+    $config.CodeCoverage.Enabled              = $true
+    $config.CodeCoverage.Path                 = $SrcPath
+    $config.CodeCoverage.UseBreakpoints       = $false   # Profiler mode: faster on large suites
+    $config.CodeCoverage.OutputFormat         = 'JaCoCo'
+    $config.CodeCoverage.OutputPath           = "$BuildPath/coverage.xml"
+    $config.CodeCoverage.CoveragePercentTarget = 80      # Fail if coverage drops below 80%
 
     $config.TestResult.Enabled      = $true
     $config.TestResult.OutputFormat = 'JUnitXml'
@@ -68,54 +70,64 @@ task Test {
 }
 
 # ---------------------------------------------------------------------------
+# Manifest: developer tool — syncs FunctionsToExport in the SOURCE manifest from
+# Public/ contents. Uses regex replacement to preserve comments. Not called by
+# Build (Build never touches source files).
 task Manifest {
     $manifestPath = "$SrcPath/$ModuleName.psd1"
     $data         = Import-PowerShellDataFile -Path $manifestPath
 
-    # Warn if still using the template GUID so the author knows to replace it
     if ($data.GUID -eq $TemplateGuid) {
         Write-Build Yellow @"
-WARNING: MyModule.psd1 still uses the template GUID.
-Run the following and paste the result into the manifest:
-
-    (New-Guid).Guid
+WARNING: $ModuleName.psd1 still uses the template GUID.
+Run (New-Guid).Guid in PowerShell and paste the result into the GUID field.
 
 "@
     }
 
-    # Auto-discover exported functions from Public/
     $functions = @(
         Get-ChildItem -Path "$SrcPath/Public/*.ps1" -ErrorAction SilentlyContinue
     ).BaseName | Sort-Object
 
-    Update-ModuleManifest -Path $manifestPath -FunctionsToExport $functions
-    Write-Build Green "Manifest updated: $($functions.Count) function(s) exported ($($functions -join ', '))."
+    $joined  = ($functions | ForEach-Object { "'$_'" }) -join ', '
+    $newLine = "FunctionsToExport = @($joined)"
+    $content = Get-Content -Path $manifestPath -Raw
+    $content = [regex]::Replace($content, '(?s)FunctionsToExport\s*=\s*@\(.*?\)', $newLine)
+    Set-Content -Path $manifestPath -Value $content.TrimEnd() -Encoding utf8NoBOM
+
+    Write-Build Green "Source manifest updated: $($functions.Count) function(s) ($($functions -join ', '))."
 }
 
 # ---------------------------------------------------------------------------
-task Build Clean, Manifest, {
-    $functions  = @(Get-ChildItem "$SrcPath/Public/*.ps1"  -ErrorAction SilentlyContinue).BaseName | Sort-Object
-    $sb         = [System.Text.StringBuilder]::new()
+task Build Clean, {
+    # Auto-discover public functions — never reads or writes the source manifest
+    $functions = @(Get-ChildItem "$SrcPath/Public/*.ps1" -ErrorAction SilentlyContinue).BaseName | Sort-Object
 
-    # Concatenate private helpers first, then public functions
+    # Concatenate Private/ then Public/ into a single .psm1 for distribution
+    $sb = [System.Text.StringBuilder]::new()
     foreach ($file in Get-ChildItem "$SrcPath/Private/*.ps1" -ErrorAction SilentlyContinue) {
-        $null = $sb.AppendLine((Get-Content -Path $file.FullName -Raw))
+        $null = $sb.AppendLine((Get-Content -Path $file.FullName -Raw).TrimEnd())
+        $null = $sb.AppendLine()
     }
     foreach ($file in Get-ChildItem "$SrcPath/Public/*.ps1" -ErrorAction SilentlyContinue) {
-        $null = $sb.AppendLine((Get-Content -Path $file.FullName -Raw))
+        $null = $sb.AppendLine((Get-Content -Path $file.FullName -Raw).TrimEnd())
+        $null = $sb.AppendLine()
     }
-
-    # Explicit export list in monolithic module — safer than Export-ModuleMember -Function *
-    $exportList = ($functions | ForEach-Object { "'$_'" }) -join ', '
-    $null = $sb.AppendLine("Export-ModuleMember -Function @($exportList)")
-
+    $joined = ($functions | ForEach-Object { "'$_'" }) -join ', '
+    $null   = $sb.AppendLine("Export-ModuleMember -Function @($joined)")
     Set-Content -Path "$OutputPath/$ModuleName.psm1" -Value $sb.ToString() -Encoding utf8NoBOM
 
-    # Copy manifest and write explicit FunctionsToExport into the build copy
+    # Copy manifest to build output and patch FunctionsToExport (source untouched)
     Copy-Item -Path "$SrcPath/$ModuleName.psd1" -Destination $OutputPath
-    Update-ModuleManifest -Path "$OutputPath/$ModuleName.psd1" -FunctionsToExport $functions
+    $builtManifest = "$OutputPath/$ModuleName.psd1"
+    $manifestContent = Get-Content -Path $builtManifest -Raw
+    $newExports      = "FunctionsToExport = @($joined)"
+    $manifestContent = [regex]::Replace($manifestContent, '(?s)FunctionsToExport\s*=\s*@\(.*?\)', $newExports)
+    Set-Content -Path $builtManifest -Value $manifestContent.TrimEnd() -Encoding utf8NoBOM
 
-    Write-Build Green "Build staged at $OutputPath ($($functions.Count) public function(s))."
+    # Validate the built manifest before anything tries to publish it
+    $validated = Test-ModuleManifest -Path $builtManifest
+    Write-Build Green "Build staged at $OutputPath — $($validated.Name) v$($validated.Version), $($functions.Count) function(s)."
 }
 
 # ---------------------------------------------------------------------------
@@ -136,8 +148,13 @@ task Docs {
         }
     }
 
+    # Compile markdown to MAML XML so Get-Help works for the installed module
+    $helpPath = "$OutputPath/en-US"
+    $null = New-Item $helpPath -ItemType Directory -Force
+    New-ExternalHelp -Path $DocsPath -OutputPath $helpPath -Force | Out-Null
+
     Remove-Module -Name $ModuleName -Force -ErrorAction SilentlyContinue
-    Write-Build Green "Docs generated in $DocsPath ($($commands.Count) cmdlet(s))."
+    Write-Build Green "Docs: $($commands.Count) cmdlet(s) -> $DocsPath (markdown) + $helpPath (MAML)."
 }
 
 # ---------------------------------------------------------------------------

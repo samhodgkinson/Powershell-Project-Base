@@ -20,7 +20,8 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, PSScriptAnalyzer -Scope CurrentUser -Force
+          Install-Module InvokeBuild    -Scope CurrentUser -Force
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
 
       - name: Lint
         shell: pwsh
@@ -40,7 +41,8 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, Pester -Scope CurrentUser -Force -MinimumVersion @{Pester='5.0'}
+          Install-Module InvokeBuild -Scope CurrentUser -Force
+          Install-Module Pester      -Scope CurrentUser -Force -MinimumVersion '5.0'
 
       - name: Test
         shell: pwsh
@@ -99,7 +101,8 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, PSScriptAnalyzer, platyPS -Scope CurrentUser -Force
+          Install-Module InvokeBuild -Scope CurrentUser -Force
+          Install-Module platyPS     -Scope CurrentUser -Force
 
       - name: Build
         shell: pwsh

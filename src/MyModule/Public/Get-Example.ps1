@@ -10,11 +10,11 @@ function Get-Example {
         - [CmdletBinding()] for common parameters (-Verbose, -WhatIf, etc.)
         - [OutputType()] so callers and platyPS know what to expect
         - A Mandatory, pipeline-accepting parameter with validation
-        - process {} block for pipeline support
+        - begin{} / process{} / end{} blocks for correct pipeline semantics
         - Comment-based help covering all sections
 
         Replace this function with your own cmdlets. Keep one function per
-        file in Public/; the build will auto-discover and export them.
+        file in Public/; the build auto-discovers and exports them.
 
     .PARAMETER Name
         The name to include in the greeting. Must not be null or empty.
@@ -34,14 +34,14 @@ function Get-Example {
         Hello, Alice!
         Hello, Bob!
 
-        Pipes multiple names; each produces one output string.
+        Pipes multiple strings; each produces one output string.
 
     .EXAMPLE
         [pscustomobject]@{ Name = 'Carol' } | Get-Example
 
         Hello, Carol!
 
-        Pipes an object whose Name property matches the parameter name.
+        Pipes an object whose Name property binds via ValueFromPipelineByPropertyName.
 
     .INPUTS
         System.String
@@ -66,7 +66,16 @@ function Get-Example {
         [string] $Name
     )
 
+    begin {
+        # One-time setup: open connections, validate cross-parameter constraints,
+        # initialise accumulators for aggregation in end{}.
+    }
+
     process {
         Invoke-ExampleHelper -Name $Name
+    }
+
+    end {
+        # Post-pipeline cleanup: close connections, emit aggregated results.
     }
 }

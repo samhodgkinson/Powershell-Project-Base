@@ -20,16 +20,27 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, PSScriptAnalyzer, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
+          Install-Module InvokeBuild -Scope CurrentUser -Force
+          Install-Module platyPS     -Scope CurrentUser -Force
 
       - name: Build
         shell: pwsh
         run: Invoke-Build Build
 
+      - name: Set ModuleVersion from tag
+        shell: pwsh
+        run: |
+          $version      = '${{ github.ref_name }}' -replace '^v', ''
+          $manifestPath = '.build/MyModule/MyModule.psd1'
+          $content      = Get-Content -Path $manifestPath -Raw
+          $content      = [regex]::Replace($content, "ModuleVersion\s*=\s*'[^']*'", "ModuleVersion = '$version'")
+          Set-Content -Path $manifestPath -Value $content.TrimEnd() -Encoding utf8NoBOM
+          Write-Host "ModuleVersion set to $version"
+
       - name: Upload module artifact
         uses: actions/upload-artifact@v4
         with:
-          name: module-package
+          name: module-package-${{ github.ref_name }}
           path: .build/MyModule/
           retention-days: 1
 
@@ -41,7 +52,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: module-package
+          name: module-package-${{ github.ref_name }}
           path: .build/MyModule/
 
       - name: Install PSResourceGet
@@ -54,8 +65,7 @@ jobs:
         shell: pwsh
         env:
           PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
-        run: |
-          Publish-PSResource -Path .build/MyModule -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
+        run: Publish-PSResource -Path .build/MyModule -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
 
   publish-github:
     name: Publish to GitHub Packages
@@ -65,7 +75,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: module-package
+          name: module-package-${{ github.ref_name }}
           path: .build/MyModule/
 
       - name: Install PSResourceGet
@@ -97,7 +107,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: module-package
+          name: module-package-${{ github.ref_name }}
           path: .build/MyModule/
 
       - name: Install PSResourceGet

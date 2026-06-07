@@ -1,23 +1,24 @@
 @{
-    RootModule        = 'MyModule.psm1'
-    ModuleVersion     = '0.1.0'
+    RootModule           = 'MyModule.psm1'
+    ModuleVersion        = '0.1.0'
 
     # TODO: Replace with your own GUID — run (New-Guid).Guid in PowerShell
-    GUID              = '49c1b8e7-8aae-447c-a22d-b0a0a7f3d36a'
+    GUID                 = '49c1b8e7-8aae-447c-a22d-b0a0a7f3d36a'
 
-    Author            = 'Your Name'
-    CompanyName       = 'Your Company'
-    Copyright         = '(c) 2026. All rights reserved.'
-    Description       = 'A PowerShell module — replace this description.'
-    PowerShellVersion = '7.2'
+    Author               = 'Your Name'
+    CompanyName          = 'Your Company'
+    Copyright            = '(c) 2026. All rights reserved.'
+    Description          = 'A PowerShell module — replace this description.'
+    PowerShellVersion    = '7.2'
+    CompatiblePSEditions = @('Core')   # PS 7+ is Core edition only
 
-    # '*' exports everything in development; Invoke-Build Manifest/Build
-    # auto-discovers Public/ functions and writes an explicit list to the
-    # built manifest under .build/MyModule/.
-    FunctionsToExport = @('*')
-    CmdletsToExport   = @()
-    VariablesToExport = @()
-    AliasesToExport   = @()
+    # '*' exports everything in development; Invoke-Build Build auto-discovers
+    # Public/ functions and writes an explicit list to the built manifest under
+    # .build/MyModule/ without touching this file.
+    FunctionsToExport    = @('*')
+    CmdletsToExport      = @()
+    VariablesToExport    = @()
+    AliasesToExport      = @()
 
     PrivateData = @{
         PSData = @{
