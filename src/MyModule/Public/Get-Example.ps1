@@ -1,22 +1,60 @@
 function Get-Example {
     <#
     .SYNOPSIS
-        Returns a greeting message.
+        Returns a greeting message for the specified name.
+
     .DESCRIPTION
-        Returns a greeting string for the given name. This function demonstrates
-        the standard layout used in this module template: CmdletBinding, OutputType,
-        Mandatory parameter, pipeline support, and comment-based help.
+        Get-Example is the template public function for this module.
+        It demonstrates the standard function layout used throughout:
+
+        - [CmdletBinding()] for common parameters (-Verbose, -WhatIf, etc.)
+        - [OutputType()] so callers and platyPS know what to expect
+        - A Mandatory, pipeline-accepting parameter with validation
+        - process {} block for pipeline support
+        - Comment-based help covering all sections
+
+        Replace this function with your own cmdlets. Keep one function per
+        file in Public/; the build will auto-discover and export them.
+
     .PARAMETER Name
-        The name to greet. Accepts pipeline input.
+        The name to include in the greeting. Must not be null or empty.
+        Accepts value from the pipeline and from a pipeline object's Name
+        property.
+
     .EXAMPLE
         Get-Example -Name 'World'
+
         Hello, World!
+
+        Passes a single name directly.
+
     .EXAMPLE
         'Alice', 'Bob' | Get-Example
+
         Hello, Alice!
         Hello, Bob!
+
+        Pipes multiple names; each produces one output string.
+
+    .EXAMPLE
+        [pscustomobject]@{ Name = 'Carol' } | Get-Example
+
+        Hello, Carol!
+
+        Pipes an object whose Name property matches the parameter name.
+
+    .INPUTS
+        System.String
+            You can pipe a string to the Name parameter.
+
     .OUTPUTS
         System.String
+            A greeting string of the form "Hello, <Name>!".
+
+    .NOTES
+        Author : Your Name
+        Version: 0.1.0
+
     .LINK
         https://github.com/samhodgkinson/powershell-project-base
     #>

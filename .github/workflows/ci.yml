@@ -16,20 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install PSScriptAnalyzer
+      - name: Install tools
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          Install-Module InvokeBuild, PSScriptAnalyzer -Scope CurrentUser -Force
 
-      - name: Run PSScriptAnalyzer
+      - name: Lint
         shell: pwsh
-        run: |
-          $results = Invoke-ScriptAnalyzer -Path ./src -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse -ReportSummary
-          if ($results) {
-            $results | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize
-            exit 1
-          }
+        run: Invoke-Build Lint
 
   test:
     name: Test (${{ matrix.os }})
@@ -41,29 +36,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Pester
+      - name: Install tools
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module Pester -Scope CurrentUser -Force -MinimumVersion 5.0
+          Install-Module InvokeBuild, Pester -Scope CurrentUser -Force -MinimumVersion @{Pester='5.0'}
 
-      - name: Run tests with coverage
+      - name: Test
         shell: pwsh
-        run: |
-          $null = New-Item .build -ItemType Directory -Force
-          $config = New-PesterConfiguration
-          $config.Run.Path           = './tests'
-          $config.Run.Exit           = $true
-          $config.Output.Verbosity   = 'Detailed'
-          $config.CodeCoverage.Enabled        = $true
-          $config.CodeCoverage.Path           = './src'
-          $config.CodeCoverage.UseBreakpoints = $false
-          $config.CodeCoverage.OutputFormat   = 'JaCoCo'
-          $config.CodeCoverage.OutputPath     = '.build/coverage.xml'
-          $config.TestResult.Enabled          = $true
-          $config.TestResult.OutputFormat     = 'JUnitXml'
-          $config.TestResult.OutputPath       = '.build/testresults.xml'
-          Invoke-Pester -Configuration $config
+        run: Invoke-Build Test
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'
@@ -84,12 +65,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run PSScriptAnalyzer security rules
+      - name: Install tools
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
-          $securityRules = @(
+
+      - name: Security scan
+        shell: pwsh
+        run: |
+          $rules = @(
             'PSAvoidUsingInvokeExpression',
             'PSAvoidUsingConvertToSecureStringWithPlainText',
             'PSAvoidUsingPlainTextForPassword',
@@ -97,31 +82,41 @@ jobs:
             'PSAvoidUsingComputerNameHardcoded',
             'PSAvoidUsingWMICmdlet'
           )
-          $results = Invoke-ScriptAnalyzer -Path ./src -Recurse -IncludeRule $securityRules
+          $results = Invoke-ScriptAnalyzer -Path ./src -Recurse -IncludeRule $rules
           if ($results) {
             $results | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize
             exit 1
           }
 
   build:
-    name: Build & Package
+    name: Build & Docs
     runs-on: ubuntu-latest
     needs: [lint, test, security]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install tools
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, platyPS -Scope CurrentUser -Force
+          Install-Module InvokeBuild, PSScriptAnalyzer, platyPS -Scope CurrentUser -Force
 
-      - name: Build and generate docs
+      - name: Build
         shell: pwsh
-        run: Invoke-Build Build, Docs
+        run: Invoke-Build Build
+
+      - name: Docs
+        shell: pwsh
+        run: Invoke-Build Docs
 
       - name: Upload module artifact
         uses: actions/upload-artifact@v4
         with:
           name: module-package
           path: .build/MyModule/
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: docs/

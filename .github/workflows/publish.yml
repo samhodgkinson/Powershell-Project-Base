@@ -10,75 +10,110 @@ permissions:
   packages: write
 
 jobs:
-  publish-gallery:
-    name: Publish to PowerShell Gallery
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    environment: release
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install tools
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, platyPS -Scope CurrentUser -Force
+          Install-Module InvokeBuild, PSScriptAnalyzer, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
 
-      - name: Build module
+      - name: Build
         shell: pwsh
         run: Invoke-Build Build
 
-      - name: Publish to PSGallery
+      - name: Upload module artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-package
+          path: .build/MyModule/
+          retention-days: 1
+
+  publish-gallery:
+    name: Publish to PowerShell Gallery
+    runs-on: ubuntu-latest
+    needs: build
+    environment: release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: module-package
+          path: .build/MyModule/
+
+      - name: Install PSResourceGet
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
+
+      - name: Publish
         shell: pwsh
         env:
           PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
-        run: Invoke-Build Publish
+        run: |
+          Publish-PSResource -Path .build/MyModule -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
 
   publish-github:
     name: Publish to GitHub Packages
     runs-on: ubuntu-latest
+    needs: build
     environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: module-package
+          path: .build/MyModule/
 
-      - name: Install build tools
+      - name: Install PSResourceGet
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
+          Install-Module Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
 
-      - name: Build module
-        shell: pwsh
-        run: Invoke-Build Build
-
-      - name: Publish to GitHub Packages
+      - name: Publish
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_OWNER: ${{ github.repository_owner }}
-        run: Invoke-Build PublishGitHub
+        run: |
+          $uri  = "https://nuget.pkg.github.com/$env:GITHUB_OWNER/index.json"
+          $cred = [pscredential]::new(
+              $env:GITHUB_OWNER,
+              (ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force)
+          )
+          Register-PSResourceRepository -Name 'GitHubPackages' -Uri $uri -Trusted -Credential $cred -ErrorAction SilentlyContinue
+          Publish-PSResource -Path .build/MyModule -Repository 'GitHubPackages' -ApiKey $env:GITHUB_TOKEN
 
   publish-ado:
     name: Publish to Azure DevOps Artifacts
     runs-on: ubuntu-latest
+    needs: build
     environment: release
     if: vars.ADO_ORG != ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: module-package
+          path: .build/MyModule/
 
-      - name: Install build tools
+      - name: Install PSResourceGet
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module InvokeBuild, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
+          Install-Module Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force
 
-      - name: Build module
-        shell: pwsh
-        run: Invoke-Build Build
-
-      - name: Publish to ADO Artifacts
+      - name: Publish
         shell: pwsh
         env:
           ADO_PAT:  ${{ secrets.ADO_PAT }}
           ADO_ORG:  ${{ vars.ADO_ORG }}
           ADO_FEED: ${{ vars.ADO_FEED }}
-        run: Invoke-Build PublishADO
+        run: |
+          $uri  = "https://pkgs.dev.azure.com/$env:ADO_ORG/_packaging/$env:ADO_FEED/nuget/v3/index.json"
+          $cred = [pscredential]::new('PAT', (ConvertTo-SecureString $env:ADO_PAT -AsPlainText -Force))
+          Register-PSResourceRepository -Name 'ADOFeed' -Uri $uri -Trusted -Credential $cred -ErrorAction SilentlyContinue
+          Publish-PSResource -Path .build/MyModule -Repository 'ADOFeed' -Credential $cred
