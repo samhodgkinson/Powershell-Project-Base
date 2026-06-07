@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PowerShell: Launch Current File",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "PowerShell: Run Pester Tests",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceFolder}/Build.ps1",
+            "args": ["-Task", "Test"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "PowerShell: Interactive Session",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

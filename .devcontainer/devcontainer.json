@@ -1,0 +1,30 @@
+{
+    "name": "PowerShell Module",
+    "image": "mcr.microsoft.com/devcontainers/powershell:7.4",
+    "postCreateCommand": "pwsh -Command 'Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module InvokeBuild, Pester, PSScriptAnalyzer, platyPS, Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force'",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.powershell",
+                "editorconfig.editorconfig",
+                "github.vscode-github-actions",
+                "GitHub.copilot",
+                "GitHub.copilot-chat"
+            ],
+            "settings": {
+                "powershell.scriptAnalysis.enable": true,
+                "powershell.scriptAnalysis.settingsPath": "${workspaceFolder}/PSScriptAnalyzerSettings.psd1",
+                "powershell.pester.useLegacyCodeLens": false,
+                "powershell.pester.outputVerbosity": "Diagnostic",
+                "[powershell]": {
+                    "editor.defaultFormatter": "ms-vscode.powershell",
+                    "editor.formatOnSave": true,
+                    "editor.rulers": [120]
+                },
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true
+            }
+        }
+    },
+    "remoteUser": "vscode"
+}
